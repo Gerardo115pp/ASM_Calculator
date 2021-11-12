@@ -1,0 +1,4 @@
+/**/__pycache__
+*.so
+*.code-workspace
+AsmMath/AsmMath.egg-info

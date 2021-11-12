@@ -1,0 +1,57 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "buildShared",
+            "type": "shell",
+            "options": {
+                "cwd": "${workspaceFolder}/AsmMath/asm_src",
+                "env": {
+                    "OPERATIONS": "${workspaceFolder}/AsmMath/"
+                }
+            },
+            "command": "echo $(pwd) && nasm -f elf64 asm_math.s -o aux.o && gcc -shared -fPIC -o $OPERATIONS/libMathASM.so aux.o && rm ./aux.o",
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": true
+            }
+        },
+        {
+            "label": "assemble",
+            "type": "shell",
+            "command": "nasm -f elf64 filters.s -o aux.o",
+            "group": "test"
+        },
+        {
+            "label": "compileDebug",
+            "type": "shell",
+            "dependsOn": "assemble",
+            "command": "gcc -g -o test aux.o test.c",
+            "group": "test"
+        },
+        {
+            "label": "test_libs",
+            "type": "shell",
+            "command": "python testLibs.py",
+            "group": "test",
+            "options": {
+                "cwd": "${workspaceFolder}/AsmMath/tests/"
+            },
+            "presentation": {
+                "clear": true
+            }
+        },
+        {
+            "label": "runCalculatorServer",
+            "type": "shell",
+            "command": "python ${cwd}/calc_server.py"
+        }
+    ]
+}
