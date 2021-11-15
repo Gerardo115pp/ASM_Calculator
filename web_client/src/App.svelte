@@ -12,7 +12,7 @@ import Operation, { operation_types, OneOperandOperationRegex, TwoOperandOperati
         new Operation(operation_types.TWO_OPERAND, "/", "/"),
         new Operation(operation_types.ONE_OPERAND, "sqrt", "√x"),
         new Operation(operation_types.TWO_OPERAND, "^", "xᵃ"),
-        new Operation(operation_types.ONE_OPERAND, "log10", "log₁₀"),
+        new Operation(operation_types.TWO_OPERAND, "log", "logᵃ"),
         new Operation(operation_types.ONE_OPERAND, "antilog", "log⁻¹"),
         new Operation(operation_types.ONE_OPERAND, "sin", "sin"),
         new Operation(operation_types.ONE_OPERAND, "cos", "cos"),

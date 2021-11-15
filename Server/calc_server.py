@@ -24,7 +24,7 @@ class OperationsRouteHandler(http.BaseHTTPRequestHandler):
             "/": asm_math.division,
             "sqrt": asm_math.squareRoot,
             "^": asm_math.exponential,
-            "log10": asm_math.logarithm,
+            "log": asm_math.logarithm,
             "antilog": asm_math.antilog,
             "sin": asm_math.sin,
             "cos": asm_math.cos,
