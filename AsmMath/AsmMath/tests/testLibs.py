@@ -69,6 +69,7 @@ def testPower():
     testTwoOperatosOperations(power, 6.6, 3, 6.6**3)
     testTwoOperatosOperations(power, 6.6, 0, 1)
     testTwoOperatosOperations(power, 5, 3.3, 5**3.3)
+    testTwoOperatosOperations(power, 30, 5, 30**5)
 
 def testExponential() -> bool:
     """

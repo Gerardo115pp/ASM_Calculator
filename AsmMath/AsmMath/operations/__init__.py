@@ -75,6 +75,7 @@ def power(a: Numeric, b: Numeric) -> float:
     if b >= 0 and type(b) is int:        
         ASM.ASMPowerNexp.argtypes = [ctypes.c_double, ctypes.c_int64]
         ASM.ASMPowerNexp.restype = ctypes.c_double
+        print(f"Powering {a} to {b}")
         return ASM.ASMPowerNexp(float(a), int(b))
     else:
         ASM.ASMPowerRexp.argtypes = [ctypes.c_double, ctypes.c_double]

@@ -1,33 +1,12 @@
 <script>
-    import { each } from 'svelte/internal';
-import Operation, { operation_types, OneOperandOperationRegex, TwoOperandOperationRegex } from './classes/operation';
+    import operations from './classes/operations';
+    import Operation, { OneOperandOperationRegex, TwoOperandOperationRegex } from './classes/operation';
 
 
     let screen = undefined;
-    let operation_string = "0";
-    let operations = [
-        new Operation(operation_types.TWO_OPERAND, "+", "+"),
-        new Operation(operation_types.TWO_OPERAND, "-", "-"),
-        new Operation(operation_types.TWO_OPERAND, "*", "*"),
-        new Operation(operation_types.TWO_OPERAND, "/", "/"),
-        new Operation(operation_types.ONE_OPERAND, "sqrt", "√x"),
-        new Operation(operation_types.TWO_OPERAND, "^", "xᵃ"),
-        new Operation(operation_types.TWO_OPERAND, "log", "logᵃ"),
-        new Operation(operation_types.ONE_OPERAND, "antilog", "log⁻¹"),
-        new Operation(operation_types.ONE_OPERAND, "sin", "sin"),
-        new Operation(operation_types.ONE_OPERAND, "cos", "cos"),
-        new Operation(operation_types.ONE_OPERAND, "tan", "tan"),
-        new Operation(operation_types.ONE_OPERAND, "arcsin", "sin⁻¹"),
-        new Operation(operation_types.ONE_OPERAND, "arccos", "cos⁻¹"),
-        new Operation(operation_types.ONE_OPERAND, "arctan", "tan⁻¹"),
-        new Operation(operation_types.ONE_OPERAND, "rads", "rad"),
-        new Operation(operation_types.ONE_OPERAND, "degs", "deg"),
-        new Operation(operation_types.ONE_OPERAND, "-x", "-x")
-    ]
-    let current_operator = {
-        operation: undefined,
-        operator_index: -1
-    }
+    let operation_string = "|";
+    
+    let current_operator = undefined;
 
     $: if (screen != undefined) {
         screen.focus();
@@ -35,69 +14,61 @@ import Operation, { operation_types, OneOperandOperationRegex, TwoOperandOperati
 
     const operationUpdate = operation => {
         if (operation instanceof Operation) {
-            let new_operation_string = operation_string;
-
-            current_operator.operation = operation;
-            new_operation_string = new_operation_string === "0" ? "" : new_operation_string; // if the operation string is 0, then clear it so that index of operator is 0 in case of a one operand operation
-            current_operator.operator_index = new_operation_string.length;
-            new_operation_string = new_operation_string + operation.operator; 
-            operation_string = new_operation_string; // change the pointer to operation_string so svelte rerenders the screen
+            if (current_operator !== undefined) {
+                resetOperation();
+            }
+            operation_string = operation.getOperationString();
+            current_operator = operation;
         }
         screen.focus();
     }
 
     const resetOperation = () => {
-        current_operator = {
-            operation: undefined,
-            operator_index: -1
-        }
+        current_operator.reset();
+        current_operator = undefined;
     }
 
 
     const screenUpdate = e => {
         const { key } = e;
-        let new_operation_string = operation_string;
-
-        if (!isNaN(key) && key != " ") {
-            new_operation_string = operation_string === "0" ? key : operation_string + key;
-        } 
-
-        switch (key) {
-            case ".":
-                new_operation_string += ".";
-                break;
-            case "Backspace":
-                if (operation_string.length > 0) {
-                    new_operation_string = operation_string.slice(0, -1);
-                }
-                break;
-            case "Enter":
-                if (operation_string.length > 0) {
-                    console.log(operation_string);
-                    current_operator.operation.execute(operation_string).then(result => {
-                        operation_string = result.result
+        if ((!isNaN(key) && key != ".") || key == "-") {
+            current_operator.sendDigit(key);
+            operation_string = current_operator.getOperationString();
+            
+        } else if (key === "ArrowLeft" || key === "ArrowRight") {
+            current_operator.changeOperand(key === "ArrowLeft" ? -1 : 1);
+            operation_string = current_operator.getOperationString();
+        } else {
+            switch (key) {
+                case ".":
+                    current_operator.sendDigit(key);
+                    operation_string = current_operator.getOperationString();
+                    break;
+                case "Backspace":
+                    current_operator.popDigit();
+                    operation_string = current_operator.getOperationString();
+                    break;
+                case "Enter":
+                    current_operator.execute().then(result => {
+                        operation_string = result.result;
                         resetOperation();
                     });
-                    return;
-                }
-                break;
-            case "Escape":
-                new_operation_string = "0";
-                resetOperation();
-                break;
-            default:
-                break;
-        }
-        
-        let syntaxChecker = TwoOperandOperationRegex;
-        if (current_operator.operation != undefined) {
-            syntaxChecker = current_operator.operation.type == 1 ? OneOperandOperationRegex : TwoOperandOperationRegex;
-        }
-
-        if (syntaxChecker.test(new_operation_string)) {
-            operation_string = new_operation_string;
-        } else {
-            console.log(`Syntax error: ${new_operation_string}`);
+                    break;
+                case "Escape":
+                    if (current_operator !== undefined) {
+                        resetOperation();
+                    }
+                    operation_string = "|";
+                    break;
+                default:
+                    for(let operation of operations) {
+                        if(operation.shortcut === key) {
+                            operationUpdate(operation);
+                            break;
+                        }
+                    }
+                    break;
+            }
         }
     }
 

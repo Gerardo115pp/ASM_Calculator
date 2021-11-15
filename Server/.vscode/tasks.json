@@ -10,7 +10,7 @@
             },
             "presentation": {
                 "reveal": "always",
-                "clear": false
+                "clear": true
             },
             "group": "build"
         }

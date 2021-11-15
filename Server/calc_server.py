@@ -23,7 +23,7 @@ class OperationsRouteHandler(http.BaseHTTPRequestHandler):
             "*": asm_math.multiplication,
             "/": asm_math.division,
             "sqrt": asm_math.squareRoot,
-            "^": asm_math.exponential,
+            "^": asm_math.power,
             "log": asm_math.logarithm,
             "antilog": asm_math.antilog,
             "sin": asm_math.sin,
@@ -35,6 +35,8 @@ class OperationsRouteHandler(http.BaseHTTPRequestHandler):
             "rads": asm_math.degreesToRadians,
             "degs": asm_math.radiansToDegrees,
             "-x": asm_math.changeSign,
+            "exp": asm_math.exponential,
+            "!": asm_math.factorial,
         }
         
         super().__init__(request, client_address, server) # request gets handled
@@ -73,20 +75,10 @@ class OperationsRouteHandler(http.BaseHTTPRequestHandler):
         
         if "a" not in body:
             is_valid = False
-        elif not asm_math.isNumeric(body["a"]):
-            try:
-                body["a"] = float(body["a"])
-            except ValueError:
-                is_valid = False
         
         if body["type"] != 1:
             if "b" not in body:
                 is_valid = False
-            elif not asm_math.isNumeric(body["b"]):
-                try:
-                    body["b"] = float(body["b"])
-                except ValueError:
-                    is_valid = False
                     
         return is_valid
         
@@ -98,6 +90,7 @@ class OperationsRouteHandler(http.BaseHTTPRequestHandler):
             # expects a body with json e.g: {"operation": "+", "a": 1, "b": 2}
             body = self.rfile.read(int(self.headers['Content-Length']))
             request = json.loads(body)
+            print("pendejpo")
             print(f"evaluating {request}")
             
             if not self.validateRequestForm(request):
@@ -108,10 +101,14 @@ class OperationsRouteHandler(http.BaseHTTPRequestHandler):
                 return
             
             # check if is a two operand operation
+            print(f"(a){type(request['a']).__name__}\t(b){type(request['b']).__name__}")
             if request["type"] == 1:
-                result = self.operations[request["operation"]](request["a"])
+                a = float(request["a"]) if "." in request["a"] else int(request["a"])
+                result = self.operations[request["operation"]](a)
             else:
-                result = self.operations[request["operation"]](request["a"], request["b"])
+                a = float(request["a"]) if "." in request["a"] else int(request["a"])
+                b = float(request["b"]) if "." in request["b"] else int(request["b"])
+                result = self.operations[request["operation"]](a, b)
                 
             response = json.dumps({"result": result}).encode()
             
