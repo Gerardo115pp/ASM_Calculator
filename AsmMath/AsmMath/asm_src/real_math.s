@@ -1,11 +1,19 @@
 DEFAULT rel
 
+%ifndef ASM_MATH_N
+    %include './asm_math.s'
+%endif
+
+
 section .text
 global additionF
 global subtractionF
 global multiplicationF
 global divisionF
 global squareRoot
+global power
+global powerNExp
+global powerRExp
 global exponential
 global  logarithm
 global antiLogarithm
@@ -51,48 +59,161 @@ squareRoot:
     ret
 ;}
 
-exponential:
-    ; get double-precision floating-point value on xmm0, and exponent on rdi
+powerRExp:
+    ; get double-precision floating-point value on xmm0 and calculate power of xmm1
+    ; we will support reals to the power of any real number, so will use the identity: x^y = e^(y*ln(x))
     ; return result in xmm0
-    ; rcx is control register for the exponentiation loop
-    
-    ; move the base to xmm1
-    movsd xmm1, xmm0
-    mov rcx, rdi
-    dec rcx
+    push rbp
+    mov rbp, rsp
+    sub rsp, 24
+    %define XMM0_HOLDER rbp-8
+    %define XMM1_HOLDER rbp-16
+    %define E rbp-24
 
-    .exponential_loop:
-        mulsd xmm1, xmm0; multiply xmm1 with xmm0
-        loop .exponential_loop
+    movlpd qword [XMM0_HOLDER], xmm0 ; save xmm0
+    movlpd qword [XMM1_HOLDER], xmm1 ; save xmm1
     
-    ; return result in xmm0
-    movsd xmm0, xmm1
+    ; get ln(xmm0)
+    mov rax, __?float64?__(2.71828182) ; load e
+    mov qword [E], rax ; save e
+    movq xmm1, rax ; xmm0 = e
+
+    call  logarithm ; xmm0 = ln(xmm0)
+    movaps xmm2, xmm0 ; xmm2 = ln(xmm0)
+
+    ; get y*ln(xmm0)
+    pxor xmm1, xmm1 ; clear xmm2
+    movlpd xmm1, qword [XMM1_HOLDER] ; xmm1 = xmm1
+
+    pxor xmm0, xmm0 ; clear xmm0
+
+    mulsd xmm2, xmm1 ; xmm2 = y*ln(xmm0)
+
+    ; get exp(y*ln(xmm0))
+
+    movaps xmm0, xmm2 ; xmm0 = y*ln(xmm0)
+    call exponential ; xmm0 = exp(y*ln(xmm0))
+
+    mov rsp, rbp
+    pop rbp
     ret
 ;}
 
-logarithm:
-    ; get double-precision floating-point value on xmm0 and calculate logarithm
+powerNExp:
+    ; get double-precision floating-point value on xmm0 and calculate power of rdi
+    ; this is a fast version of power, only supports natural numbers for the exponent
+    ; return result in xmm0
+
+    
+    mov rax, __?float64?__(1.0) ; n^1 = n V n, and at this point we are sure n > 0, that means if n = 1 at the first iteration rax will be equal to 1*n
+    movaps xmm1, xmm0 ; xmm1 will hold the base
+
+    pxor xmm0, xmm0 ; clear xmm0
+    movq xmm0, rax
+
+    cmp rdi, 0
+    je .powerNExp_end ; if exponent is 0, return 1
+
+    mov rcx, rdi ; rcx = counter
+    .powerNExp_loop:
+        mulsd xmm0, xmm1 ; multiply xmm0 with xmm1
+
+        loop .powerNExp_loop ; loop until counter is 0
+
+    .powerNExp_end:
+    ret
+;}
+
+exponential:
+    ; get double-precision floating-point value on xmm0 and calculate e^x
+    ; wi will use \sum_{i=0}^n (x^i)/i!, with n = 18
+    ; rcx = n
     ; return result in xmm0
     push rbp
     mov rbp, rsp
     sub rsp, 8
-    %define X rbp-8
+    %define XMM_HOLDER rbp-8
+    %define N 20
 
+    xor rax, rax ; clear result
+    xor rcx, rcx ; set n SUSPECT
+    
+    pxor xmm2, xmm2 ; xmm2 will temporarily hold the result of the sum
+    .exponential_loop:
+
+        ; get x^i by calling powerNExp, it expects the base on xmm0(which is already set) and the exponent on rdi
+        push rcx ; save n
+        mov rdi, rcx ; set exponent
+        movlpd qword [XMM_HOLDER], xmm0 ; save xmm0
+        call powerNExp
+        movaps xmm1, xmm0 ; save result
+        pop rcx ; restore n
+
+        ; get i! by calling factorial, it expects the value on rdi
+        mov rdi, rcx ; set value
+        push rcx ; save n
+        call factorial
+        pop rcx ; restore n
+        
+        movlpd xmm0, qword [XMM_HOLDER] ; restore xmm0
+        
+        movlpd qword [XMM_HOLDER], xmm1 ; save x^i
+        fld qword [XMM_HOLDER] ; load x^i
+        mov qword [XMM_HOLDER], rax
+        fild qword [XMM_HOLDER] ; load i! as a real number
+        fdivp ; divide x^i by i! and pop the stack
+
+        fstp qword [XMM_HOLDER] ; save result
+        movlpd xmm1, qword [XMM_HOLDER] ; restore x^i
+        addsd xmm2, xmm1 ; add x^i to the sum
+
+        inc rcx ; increment n
+        cmp rcx, N ; check if we have reached the end of the loop
+        jle .exponential_loop ; if not, jump to the beginning of the loop
+
+    mov rax, rcx ; save n
+    movaps xmm0, xmm2 ; save the result
+    mov rsp, rbp
+    pop rbp
+    ret
+;}
+
+logarithm:
+    ; get double-precision floating-point value on xmm0 and calculate log_xmm1(xmm0)
+    ; FYL2X computes `st1 * log2(st0)` so if we set st1 = 1, we get log_2(xmmi)
+    ; we will use the identity log_y(x) = log_2(y) / log_2(x)
+    ; return result in xmm0
+    push rbp
+    mov rbp, rsp
+    sub rsp, 0x18 ; allocate stack space for local variables
+    %define FPU_SPACE rbp-8
+    %define LOG_2_XMM0 rbp-16
+    %define LOG_2_XMM1 rbp-24
 
     finit
 
-    fldl2t ; load log_2(10) to st(0)
+    ; get log_2(xmm0)
 
-    movlpd qword [X], xmm0
-    fld1 ; load 1.0 to st1
-    fld qword [X] ; load 10 to st0
-    fyl2x ; calculate logarithm of xmm0
+    fld1 ; st1 = 1
+    movlpd qword [FPU_SPACE], xmm0 ; st0 = xmm0
+    fld qword [FPU_SPACE] ; st0 = xmm0, st1 = 1
+    fyl2x ; st0 = log_2(xmm0)
+    fstp qword [LOG_2_XMM0] ; st0 = log_2(xmm0)
 
-    fdiv st0, st1 ; (log_2(x) / log_2(10)) == log_10(x). st0 = log_2(x), st1 = log_2(x) 
+    fld1 ; st1 = 1
+    movlpd qword [FPU_SPACE], xmm1 ; st0 = xmm1
+    fld qword [FPU_SPACE] ; st0 = xmm1, st1 = 1
+    fyl2x ; st0 = log_2(xmm1)
+    fstp qword [LOG_2_XMM1] ; st0 = log_2(xmm1)
+    ; fyl2x is suppose to be setting the result on st1 and popint st0, so we shouldnt need to clean the fpu stack
 
-    fstp qword [X] ; store result in xmm0
+    ; get log_2(xmm0) / log_2(xmm1)
+    fld qword [LOG_2_XMM1] ; st1 = log_2(xmm1)
+    fld qword [LOG_2_XMM0] ; st0 = log_2(xmm0), st1 = log_2(xmm1)
+    fdiv st0, st1 ; st0 = log_2(xmm0) / log_2(xmm1)
 
-    movlpd xmm0, qword [X] ; load result from xmm0
+    fstp qword [FPU_SPACE]
+    movlpd xmm0, qword [FPU_SPACE] ; xmm0 = log_xmm1(xmm0)
 
     mov rsp, rbp
     pop rbp
@@ -100,9 +221,7 @@ logarithm:
 ;}
 
 antiLogarithm:
-    ; get double-precision floating-point value on xmm0 and calculate antiLogarithm
-    ; the formula for antiLogarithm of log_a(x) if just a^x, for this lib we just need
-    ; the common logarithm and antiLogarithm which means antiLogarithm = 10^x
+    ; get double-precision floating-point value on xmm0 and calculate antiLogarithm(aka 10^x)
     ; return result in xmm0
     push rbp
     mov rbp, rsp
@@ -110,17 +229,17 @@ antiLogarithm:
     %define A rbp-4
 
     mov dword [A], 10 ; load 10 to A
-    cvttsd2si rdi, xmm0 ; convert xmm0 to integer
+    ; cvttsd2si rdi, xmm0 ; convert xmm0 to integer
+    movaps xmm1, xmm0 ; xmm1 will hold the base
 
     pxor xmm0, xmm0 ; clear xmm0
     cvtsi2sd xmm0, dword [A] ; load 10 to xmm0
-    call exponential ; calculate 10^x
+    call powerRExp ; calculate 10^x
 
     mov rsp, rbp
     pop rbp
     ret
 ;}
-
 
 sin:
     ; get double-precision floating-point value on xmm0 and calculate sin

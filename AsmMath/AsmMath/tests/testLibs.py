@@ -8,8 +8,10 @@ def testTwoOperatosOperations(operasion: TOO, a: Numeric, b: Numeric, expected_v
     """
     Test the two operatos operations
     """
-    test_result = (result := operasion(a, b)) == expected_value
+    test_result = abs((result := operasion(a, b)) - expected_value) <= 10**-4
     print(f"The result of {a} {operasion.__name__} {b} is: {result}, {operasion.__name__} {'OK' if test_result else 'FAIL'}")
+    if not test_result:
+        print(f"Expected result: {expected_value}, percentual error: {abs(result - expected_value)/expected_value*100:.5f}%")
     return test_result
 
 def testOneOperatorOperation(operasion: TOO, a: Numeric, expected_value: Numeric) -> bool:
@@ -19,7 +21,7 @@ def testOneOperatorOperation(operasion: TOO, a: Numeric, expected_value: Numeric
     test_result = abs((result := operasion(a)) - expected_value) <= 10**-4
     print(f"The result of {a} {operasion.__name__} is: {result}, {operasion.__name__} {'OK' if test_result else 'FAIL'}")
     if not test_result:
-        print(f"Expected result: {expected_value}")
+        print(f"Expected result: {expected_value}, percentual error: {abs(result - expected_value)/expected_value*100:.5f}%")
     return test_result 
 
 def testAddition() -> bool:
@@ -50,6 +52,12 @@ def testDivision() -> bool:
     testTwoOperatosOperations(division, 15, 5, 3)
     testTwoOperatosOperations(division, 5.0, 2.5, 2.0)
 
+def testFactorial():
+    testOneOperatorOperation(factorial, 5, 120)
+    testOneOperatorOperation(factorial, 0, 1)
+    testOneOperatorOperation(factorial, 20, math.factorial(20))
+    testOneOperatorOperation(factorial, 2, 2)
+
 def testSquareRoot() -> bool:
     """
     Test the square root function
@@ -57,19 +65,24 @@ def testSquareRoot() -> bool:
     testOneOperatorOperation(squareRoot, 25, 5)
     testOneOperatorOperation(squareRoot, 69, math.sqrt(69))
 
+def testPower():
+    testTwoOperatosOperations(power, 6.6, 3, 6.6**3)
+    testTwoOperatosOperations(power, 6.6, 0, 1)
+    testTwoOperatosOperations(power, 5, 3.3, 5**3.3)
+
 def testExponential() -> bool:
     """
     Test the exponential function
     """
-    testTwoOperatosOperations(exponential, 7, 3, 7**3)
-
+    testOneOperatorOperation(exponential, 3.4, math.exp(3.4))
 
 def testLogarithm():
-    testOneOperatorOperation(logarithm, 5, math.log(5,10))
-    testOneOperatorOperation(logarithm, 103, math.log(103,10))
+    testTwoOperatosOperations(logarithm, 8, 5, math.log(8, 5))
+    testTwoOperatosOperations(logarithm, 8, 2, math.log(8, 2))
+    testTwoOperatosOperations(logarithm, 8, math.e, math.log(8, math.e))
 
 def testAntilog():
-    testOneOperatorOperation(antilog, 5, 10**5)
+    testOneOperatorOperation(antilog, 5.6, 10**5.6)
 
 def testSin():
     testOneOperatorOperation(sin, math.pi/4, math.sin(math.pi/4))
@@ -121,8 +134,14 @@ def test():
     print("\nTesting the division function:")
     testDivision()
     
+    print("\nTesting the factorial function:")
+    testFactorial()
+    
     print("\nTesting the square root function:")
     testSquareRoot()
+    
+    print("\nTesting the power function:")
+    testPower()
     
     print("\nTesting the exponential function:")
     testExponential()

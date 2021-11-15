@@ -23,8 +23,15 @@ ASMmultiplicationFloat = asm_math.multiplicationF
 ASMdivision = asm_math.division
 ASMdivisionFloat = asm_math.divisionF
 
+# Factorial: support for int
+ASMfactorial = asm_math.factorial
+
 # Square root: support for float
 ASMsquareRoot = asm_math.squareRoot
+
+# Power: support for float and float
+ASMPowerNexp = asm_math.powerNExp
+ASMPowerRexp = asm_math.powerRExp
 
 # Exponentiation: support for float as base and int as exponent
 ASMexponentiation = asm_math.exponential
