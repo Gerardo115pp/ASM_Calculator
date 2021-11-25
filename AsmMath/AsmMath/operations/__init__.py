@@ -29,22 +29,26 @@ def isNumeric(a:Any) -> bool:
 #====================== OPERATIONS ======================
 
 def addition(a: Numeric, b:Numeric) -> Numeric:
-    func = ASM.ASMaddition if type(a) is int else ASM.ASMadditionFloat
+    a, b = float(a), float(b)
+    func = ASM.ASMadditionFloat
     func = prepareOperation(func, a, b)
     return func(a, b)
     
 def subtraction(a: Numeric, b: Numeric) -> Numeric:
-    func = ASM.ASMsubtraction if type(a) is int else ASM.ASMsubtractionFloat
+    a, b = float(a), float(b)
+    func = ASM.ASMsubtractionFloat
     func = prepareOperation(func, a, b)
     return func(a, b)
     
 def multiplication(a: Numeric, b: Numeric) -> Numeric:
-    func = ASM.ASMmultiplication if type(a) is int else ASM.ASMmultiplicationFloat
+    a, b = float(a), float(b)
+    func = ASM.ASMmultiplicationFloat
     func = prepareOperation(func, a, b)
     return func(a, b)
     
 def division(a: Numeric, b: Numeric) -> Numeric:
-    func = ASM.ASMdivision if type(a) is int else ASM.ASMdivisionFloat
+    a, b = float(a), float(b)
+    func =  ASM.ASMdivisionFloat
     func = prepareOperation(func, a, b)
     return func(a, b)
 
