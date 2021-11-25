@@ -61,42 +61,68 @@ squareRoot:
 
 powerRExp:
     ; get double-precision floating-point value on xmm0 and calculate power of xmm1
-    ; we will support reals to the power of any real number, so will use the identity: x^y = e^(y*ln(x))
+    ; we will support reals to the power of any real number, so will use, for the fractional part, the
+    ; identity: x^y = 2^(y*log(x)). for the integer part we just use the standard exponentiation. then
+    ; we will multiply integer part by the result of the fractional part.
     ; return result in xmm0
     push rbp
     mov rbp, rsp
-    sub rsp, 24
-    %define XMM0_HOLDER rbp-8
-    %define XMM1_HOLDER rbp-16
-    %define E rbp-24
+    sub rsp, 0x20; allocate stack space for local variables
+    %define REAL rbp-8
+    %define INTEGER rbp-16
+    %define BASE rbp-24
+    %define FPU_SPACE rbp-32
 
-    movlpd qword [XMM0_HOLDER], xmm0 ; save xmm0
-    movlpd qword [XMM1_HOLDER], xmm1 ; save xmm1
+    movlpd qword [BASE], xmm0 ; save the base value 
+
+
+    finit
     
-    ; get ln(xmm0)
-    mov rax, __?float64?__(2.71828182) ; load e
-    mov qword [E], rax ; save e
-    movq xmm1, rax ; xmm0 = e
+    ; getting the fractional part of exponent
+    fld1 ; st1 = 1
+    movlpd qword [FPU_SPACE], xmm1 
+    fld qword [FPU_SPACE] ; st0 = xmm0
+    fprem ; st0 = xmm0 - st1 * floor(xmm0)
 
-    call  logarithm ; xmm0 = ln(xmm0)
-    movaps xmm2, xmm0 ; xmm2 = ln(xmm0)
+    fstp qword [REAL] ; st0 = xmm0 - st1 * floor(xmm0)
+    fstp st0 ; free fpu stack
 
-    ; get y*ln(xmm0)
-    pxor xmm1, xmm1 ; clear xmm2
-    movlpd xmm1, qword [XMM1_HOLDER] ; xmm1 = xmm1
+    movlpd xmm0, qword [REAL] ; get the integer part of exponent
+    subsd xmm1, xmm0 ; exponent - fractional part = integer part
+    movlpd qword [INTEGER], xmm1 ; save the integer part
 
-    pxor xmm0, xmm0 ; clear xmm0
+    ; caculating the power of base to the fractional part
+    fld qword [REAL] ; st0 = xmm0 - st1 * floor(xmm0)
+    fld qword [BASE] ; st0 = base
+    fyl2x ; st1 = st1 * log_2(base); pop register stack, so st0 = fractiona * log_2(base)
+    fld1 ; st0 = 1
+    faddp ; add st0 to st1, store in st1 and pop register stack. st0 = fractional * log_2(base) + 1
 
-    mulsd xmm2, xmm1 ; xmm2 = y*ln(xmm0)
+    f2xm1 ; st0 = 2^(fractional * log_2(base)) - 1
+    fld1 ; st0 = 1
+    faddp ; add st0 to st1, store in st1 and pop register stack. st0 = fractional * log_2(base) + 1
 
-    ; get exp(y*ln(xmm0))
+    fstp qword [REAL] ; st0 = 2^(fractional * log_2(base)) - 1
 
-    movaps xmm0, xmm2 ; xmm0 = y*ln(xmm0)
-    call exponential ; xmm0 = exp(y*ln(xmm0))
+    ; calculating the integer part of the power
+    movlpd xmm0, qword [BASE] ; xmm0  will store the result
+
+    xor rcx, rcx ; clear rcx, rcx will be used as a counter
+    cvtsd2si ecx, qword [INTEGER] ; ecx = integer part of exponent
+    movlpd xmm1, qword [BASE] ; xmm1 = base
+    dec rcx ; decrement counter
+    .integerpart_loop:
+
+        mulsd xmm0, xmm1 ; xmm0 = xmm0 * xmm1
+
+        loop .integerpart_loop
+    
+    movlpd xmm1, qword [REAL]
+    mulsd xmm0, xmm1 ; xmm0 = (base ^ fractional) * (base ^ integer)
 
     mov rsp, rbp
     pop rbp
-    ret
+    ret 
 ;}
 
 powerNExp:

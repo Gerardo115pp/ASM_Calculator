@@ -49,6 +49,19 @@
             }
         },
         {
+            "label": "buildAndTest",
+            "type": "shell",
+            "dependsOn": "buildShared",
+            "command": "python testLibs.py",
+            "group": "test",
+            "options": {
+                "cwd": "${workspaceFolder}/AsmMath/tests/"
+            },
+            "presentation": {
+                "clear": true
+            }
+        },
+        {
             "label": "runCalculatorServer",
             "type": "shell",
             "command": "python ${cwd}/calc_server.py"
