@@ -61,7 +61,7 @@ squareRoot:
 
 powerRExp:
     ; get double-precision floating-point value on xmm0 and calculate power of xmm1
-    ; we will support reals to the power of any real number, so will use, for the fractional part, the
+    ; we will support reals to the power of any real number. so we will use, for the fractional part, the
     ; identity: x^y = 2^(y*log(x)). for the integer part we just use the standard exponentiation. then
     ; we will multiply integer part by the result of the fractional part.
     ; return result in xmm0
@@ -75,34 +75,41 @@ powerRExp:
 
     movlpd qword [BASE], xmm0 ; save the base value 
 
+    xor rax, rax ; clear rax
+    cvttsd2si eax, xmm1 ; convert xmm1 to integer
+    mov qword [INTEGER], rax ; save the integer part
+    cvtsi2sd xmm0, dword [INTEGER] ;
+    movlpd qword [INTEGER], xmm0 ; save the integer part as double
 
+    subsd xmm1, xmm0 ; subtract integer part from xmm1 to get fractional part
+    movlpd qword [REAL], xmm1 ; save the fractional part
+
+    
     finit
     
-    ; getting the fractional part of exponent
-    fld1 ; st1 = 1
-    movlpd qword [FPU_SPACE], xmm1 
-    fld qword [FPU_SPACE] ; st0 = xmm0
-    fprem ; st0 = xmm0 - st1 * floor(xmm0)
-
-    fstp qword [REAL] ; st0 = xmm0 - st1 * floor(xmm0)
-    fstp st0 ; free fpu stack
-
-    movlpd xmm0, qword [REAL] ; get the integer part of exponent
-    subsd xmm1, xmm0 ; exponent - fractional part = integer part
-    movlpd qword [INTEGER], xmm1 ; save the integer part
-
     ; caculating the power of base to the fractional part
-    fld qword [REAL] ; st0 = xmm0 - st1 * floor(xmm0)
+    ; x = fractional part * log2(base)
+    ; base**fractional part = 2**(x - round(x)) * 2**round(x), V x E R
+    fld qword [REAL] ; st1 = fractional part
     fld qword [BASE] ; st0 = base
     fyl2x ; st1 = st1 * log_2(base); pop register stack, so st0 = fractiona * log_2(base)
-    fld1 ; st0 = 1
-    faddp ; add st0 to st1, store in st1 and pop register stack. st0 = fractional * log_2(base) + 1
 
-    f2xm1 ; st0 = 2^(fractional * log_2(base)) - 1
-    fld1 ; st0 = 1
-    faddp ; add st0 to st1, store in st1 and pop register stack. st0 = fractional * log_2(base) + 1
+    fld st0; push st0 also to st1
+    frndint ; round st0 to integer
+    fsub st1, st0 ; st1 = st1 - st0; 
+    fld1 ; st0 = 1.0, st1 = round(fractional * log_2(base)), st2 = (fractional * log_2(base)) - round(fractional * log_2(base))
+    fscale ; s0 = s0 * 2^st1;
+    fxch ; swap st0 and st1
+    fstp st0
+    fxch
+    f2xm1
+    fld1
+    faddp
+    fmulp
 
+    
     fstp qword [REAL] ; st0 = 2^(fractional * log_2(base)) - 1
+
 
     ; calculating the integer part of the power
     movlpd xmm0, qword [BASE] ; xmm0  will store the result

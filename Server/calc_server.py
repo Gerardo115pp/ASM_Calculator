@@ -109,7 +109,8 @@ class OperationsRouteHandler(http.BaseHTTPRequestHandler):
                 a = float(request["a"]) if "." in request["a"] else int(request["a"])
                 b = float(request["b"]) if "." in request["b"] else int(request["b"])
                 result = self.operations[request["operation"]](a, b)
-                
+            
+            print(f"result: {result}")
             response = json.dumps({"result": result}).encode()
             
             self.send_response(200) # writes <status code> <reason>
